@@ -5,6 +5,7 @@
     ufw_test_allowed_rule_port: "2222/tcp"
     ufw_test_allowed_rule_comment: "molecule test rule"
     ufw_test_unlisted_port: "3333/tcp"
+    ufw_test_removed_rule_port: "4444/tcp"
   tasks:
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -48,6 +49,15 @@
           {{ ufw_test_unlisted_port }} appears in ufw status output even
           though it was never in ufw_allow_rules -- the allowlist is not
           being applied exactly:\n{{ ufw_status.stdout }}
+
+    - name: Verify a rule dropped from ufw_allow_rules on a later run was pruned
+      ansible.builtin.assert:
+        that: ufw_test_removed_rule_port not in ufw_status.stdout
+        fail_msg: >-
+          {{ ufw_test_removed_rule_port }} was allowed during converge, then
+          removed from ufw_allow_rules for the side_effect run, but it still
+          appears in ufw status output -- stale rules are not being pruned
+          when ufw_allow_rules changes:\n{{ ufw_status.stdout }}
 
     - name: Verify outbound requests are actually allowed
       ansible.builtin.uri:

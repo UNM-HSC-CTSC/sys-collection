@@ -1,12 +1,16 @@
 # ctsc.sys.ufw
 
-Resets `ufw` to a clean `deny incoming` / `allow outgoing` baseline, applies
-an allowlist from `ufw_allow_rules`, then enables it.
+Sets `ufw` to a `deny incoming` / `allow outgoing` baseline, applies an
+allowlist from `ufw_allow_rules`, then enables it.
 
-**Warning**: this role calls `ufw reset` every run. It is idempotent in the
-sense that the end state is always exactly `ufw_allow_rules`, but it is not
-additive — anything not in the list is removed, including rules added
-outside of Ansible.
+The role is fully idempotent: it diffs the currently active `allow` rules
+against `ufw_allow_rules` and only touches what's actually different, so a
+repeat run with unchanged variables reports no changes. The end state is
+still declarative and not additive — any `allow` rule not present in
+`ufw_allow_rules`, including ones added outside of Ansible (e.g. via a
+manual `ufw allow ...`), is removed. This pruning is scoped to `allow`
+rules only: `deny`/`limit`/`reject` rules added outside the role are left
+alone.
 
 ## Variables
 

@@ -11,3 +11,6 @@
           - port: "2222"
             proto: tcp
             comment: "molecule test rule"
+          - port: "4444"
+            proto: tcp
+            comment: "molecule test rule to be removed"
