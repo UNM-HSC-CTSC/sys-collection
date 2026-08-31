@@ -41,8 +41,11 @@ ansible-galaxy collection install -r requirements.yml
 ## Development
 
 ```shell
-conda env create -f environment.yml && conda activate sys-collection
+uv venv && source .venv/bin/activate
+uv pip sync requirements.txt
 ```
+
+(any other `requirements.txt`-compatible tool works too, e.g. `pip install -r requirements.txt`)
 
 Then, from the repo root:
 
