@@ -52,6 +52,6 @@ ansible-lint
 yamllint .
 ```
 
-Each role gets its own scenario under `molecule/<role_name>/`. Only
+Each role gets its own scenario under `extensions/molecule/<role_name>/`. Only
 `fail2ban` has one so far — `ufw` and `unattended_upgrades` need scenarios
 added following the same pattern before they're considered fully ported.
