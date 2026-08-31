@@ -1,0 +1,103 @@
+---
+- name: Ensure ufw package is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: Set default incoming policy to deny
+  community.general.ufw:
+    policy: deny
+    direction: incoming
+
+- name: Set default outgoing policy to allow
+  community.general.ufw:
+    policy: allow
+    direction: outgoing
+
+- name: Resolve named ports in ufw_allow_rules for drift detection
+  ansible.builtin.getent:
+    database: services
+    key: "{{ item.port }}"
+  loop: "{{ ufw_allow_rules }}"
+  when: not (item.port is regex('^[0-9]+(:[0-9]+)?$'))
+  loop_control:
+    label: "{{ item.port }}"
+
+- name: Reset desired ufw rule tuple accumulator
+  ansible.builtin.set_fact:
+    ufw_desired_tuples: []
+
+- name: Build desired ufw rule tuples for drift detection
+  ansible.builtin.set_fact:
+    ufw_desired_tuples: "{{ ufw_desired_tuples + [[item.src | default('any'), ufw_port, ufw_proto, item.comment | default('')]] }}"
+  vars:
+    ufw_port_is_numeric: "{{ item.port is regex('^[0-9]+(:[0-9]+)?$') }}"
+    ufw_resolved_service: "{{ ansible_facts.getent_services[item.port][0] if not ufw_port_is_numeric else '' }}"
+    ufw_port: "{{ item.port if ufw_port_is_numeric else ufw_resolved_service.split('/')[0] }}"
+    ufw_resolved_proto: "{{ ufw_resolved_service.split('/')[1] if ('/' in ufw_resolved_service) else 'any' }}"
+    ufw_proto: "{{ item.proto | default(ufw_resolved_proto if not ufw_port_is_numeric else 'any') }}"
+  loop: "{{ ufw_allow_rules }}"
+  loop_control:
+    label: "{{ item.port }}"
+
+- name: Get ufw rules currently added
+  ansible.builtin.command: ufw show added
+  register: ufw_show_added
+  changed_when: false
+
+- name: Reset current ufw rule signature accumulator
+  ansible.builtin.set_fact:
+    ufw_current_signatures: []
+
+- name: Parse currently added ufw allow rules with an explicit source
+  ansible.builtin.set_fact:
+    ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
+  vars:
+    ufw_signature:
+      src: "{{ (item | regex_search('^ufw allow from (\\S+) to any port', '\\1'))[0] }}"
+      port: "{{ (item | regex_search('to any port (\\S+)', '\\1'))[0] }}"
+      proto: "{{ ((item | regex_search(\" proto (\\S+)\", '\\1')) | default(['any'], true))[0] }}"
+      comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
+      raw: "{{ item }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow from ') | list }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Parse currently added ufw allow rules without an explicit source
+  ansible.builtin.set_fact:
+    ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
+  vars:
+    ufw_signature:
+      src: "any"
+      port: "{{ (item | regex_search('^ufw allow ([0-9]+(?::[0-9]+)?)', '\\1'))[0] }}"
+      proto: "{{ ((item | regex_search('^ufw allow [0-9]+(?::[0-9]+)?/(\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
+      raw: "{{ item }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow ') | reject('match', '^ufw allow from ') | list }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove ufw allow rules that are not in ufw_allow_rules
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.src }}"
+    delete: true
+  loop: "{{ ufw_current_signatures }}"
+  loop_control:
+    label: "{{ item.raw }}"
+  when: "[item.src, item.port, item.proto, item.comment] not in ufw_desired_tuples"
+
+- name: Allow ports defined in ufw_allow_rules
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | default('any') }}"
+    from_ip: "{{ item.src | default('any') }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_allow_rules }}"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

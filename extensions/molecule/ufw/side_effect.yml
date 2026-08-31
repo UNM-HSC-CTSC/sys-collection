@@ -1,0 +1,13 @@
+---
+- name: Side effect
+  hosts: all
+  become: true
+  tasks:
+    - name: Re-include ctsc.sys.ufw with the 4444 rule dropped from ufw_allow_rules
+      ansible.builtin.include_role:
+        name: ctsc.sys.ufw
+      vars:
+        ufw_allow_rules:
+          - port: "2222"
+            proto: tcp
+            comment: "molecule test rule"

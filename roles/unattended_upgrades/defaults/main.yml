@@ -1,0 +1,14 @@
+---
+# Python-regex package-name patterns to exclude from unattended upgrades,
+# rendered verbatim into the Unattended-Upgrade::Package-Blacklist block.
+# Empty by default: no consuming inventory's blacklist is generalizable, and
+# most hosts running this role are expected to override it in host/group vars.
+unattended_upgrades_package_blacklist_content: ""
+
+# 50unattended-upgrades.j2 only controls *what* gets upgraded -- it has no
+# effect unless periodic runs are also turned on. Ubuntu normally ships
+# 20auto-upgrades with periodic runs enabled by default, but set this to
+# false if a consuming inventory manages 20auto-upgrades itself (e.g. it was
+# previously removed and reinstalled non-interactively, bypassing the
+# package's debconf default).
+unattended_upgrades_enable_periodic: true

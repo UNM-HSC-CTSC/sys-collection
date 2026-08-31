@@ -1,0 +1,4 @@
+---
+skip_list:
+  # A changelog is overkill for this repo at this time.
+  - galaxy[no-changelog]

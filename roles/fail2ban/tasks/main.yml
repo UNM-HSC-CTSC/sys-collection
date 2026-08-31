@@ -1,0 +1,18 @@
+---
+- name: Ensure fail2ban package is installed
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+  register: _fail2ban_install
+
+# In check mode, if fail2ban isn't installed yet, the apt task above is only
+# simulated, so the service doesn't actually exist on the host yet. Querying
+# it would fail with "Could not find the requested service", so skip it and
+# rely on the apt task's --diff output to show that fail2ban would be installed.
+- name: Ensure fail2ban service is running and enabled
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  when: not (ansible_check_mode and _fail2ban_install is changed)
