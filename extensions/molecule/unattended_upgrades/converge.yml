@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Include ctsc.sys.unattended_upgrades
+      ansible.builtin.include_role:
+        name: ctsc.sys.unattended_upgrades
+      vars:
+        unattended_upgrades_package_blacklist_content: |
+          "postgresql-.*";
+          "libpq.*";

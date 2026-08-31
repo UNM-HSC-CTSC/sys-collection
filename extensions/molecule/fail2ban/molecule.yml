@@ -4,7 +4,7 @@ driver:
 platforms:
   - name: instance
     image: ansible-sys-fail2ban-test
-    dockerfile: Dockerfile
+    dockerfile: ../Dockerfile
     pre_build_image: false
     command: /lib/systemd/systemd
     privileged: true

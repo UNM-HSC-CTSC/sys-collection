@@ -1,0 +1,77 @@
+---
+- name: Verify
+  hosts: all
+  vars:
+    unattended_upgrades_test_blacklist_patterns:
+      - '"postgresql-.*";'
+      - '"libpq.*";'
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify unattended-upgrades is installed
+      ansible.builtin.assert:
+        that: "'unattended-upgrades' in ansible_facts.packages"
+
+    - name: Read rendered 50unattended-upgrades config
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/50unattended-upgrades
+      register: unattended_upgrades_config_raw
+
+    - name: Verify the package blacklist content was rendered
+      vars:
+        unattended_upgrades_config_content: "{{ unattended_upgrades_config_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that: unattended_upgrades_config_content is search(item)
+        fail_msg: >-
+          Expected {{ item }} in /etc/apt/apt.conf.d/50unattended-upgrades but
+          it was not found:\n{{ unattended_upgrades_config_content }}
+      loop: "{{ unattended_upgrades_test_blacklist_patterns }}"
+
+    - name: Verify periodic APT config was written
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/20auto-upgrades
+      register: unattended_upgrades_periodic_config
+
+    - name: Assert periodic APT config exists
+      ansible.builtin.assert:
+        that: unattended_upgrades_periodic_config.stat.exists
+        fail_msg: >-
+          /etc/apt/apt.conf.d/20auto-upgrades was not created even though
+          unattended_upgrades_enable_periodic defaults to true
+
+    - name: Check apt-daily timer active state
+      # service_facts's dict is keyed inconsistently for timer units across
+      # ansible-core versions/systemd backends, so ask systemd directly instead.
+      ansible.builtin.command: "systemctl is-active {{ item }}"
+      register: unattended_upgrades_timer_active
+      changed_when: false
+      failed_when: false
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+
+    - name: Assert apt-daily timers are active
+      ansible.builtin.assert:
+        that: item.stdout == 'active'
+        fail_msg: "{{ item.item }} is not active (systemctl is-active reported '{{ item.stdout }}')"
+      loop: "{{ unattended_upgrades_timer_active.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check apt-daily timer enablement
+      ansible.builtin.command: "systemctl is-enabled {{ item }}"
+      register: unattended_upgrades_timer_enabled
+      changed_when: false
+      failed_when: false
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+
+    - name: Assert apt-daily timers are enabled
+      ansible.builtin.assert:
+        that: item.stdout == 'enabled'
+        fail_msg: "{{ item.item }} is not enabled (systemctl is-enabled reported '{{ item.stdout }}')"
+      loop: "{{ unattended_upgrades_timer_enabled.results }}"
+      loop_control:
+        label: "{{ item.item }}"

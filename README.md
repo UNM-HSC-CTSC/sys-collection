@@ -51,10 +51,13 @@ Then, from the repo root:
 
 ```shell
 molecule test -s fail2ban
+molecule test -s ufw
+molecule test -s unattended_upgrades
 ansible-lint
 yamllint .
 ```
 
 Each role gets its own scenario under `extensions/molecule/<role_name>/`.
-`fail2ban` and `ufw` have one so far — `unattended_upgrades` needs a scenario
-added following the same pattern before it's considered fully ported.
+Scenarios share a single base image, `extensions/molecule/Dockerfile`, which
+each scenario's `molecule.yml` points to via `dockerfile: ../Dockerfile` —
+add packages there only if a new scenario actually needs them.
