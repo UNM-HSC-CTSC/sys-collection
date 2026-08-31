@@ -1,0 +1,13 @@
+---
+namespace: ctsc
+name: sys
+version: 0.1.0
+readme: README.md
+description: Reusable, host-agnostic system-baseline roles for CTSC hosts
+authors:
+  - Jack Ringer
+license:
+  - MIT
+repository: https://github.com/UNM-HSC-CTSC/sys-collection
+issues: https://github.com/UNM-HSC-CTSC/sys-collection/issues
+dependencies: {}

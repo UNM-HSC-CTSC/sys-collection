@@ -1,0 +1,19 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify fail2ban is installed
+      ansible.builtin.assert:
+        that: "'fail2ban' in ansible_facts.packages"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify fail2ban is running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['fail2ban.service'].state == 'running'
+          - ansible_facts.services['fail2ban.service'].status == 'enabled'

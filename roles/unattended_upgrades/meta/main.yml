@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: unattended_upgrades
+  description: Configure unattended-upgrades and enable periodic APT timers
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - security
+    - patching
+    - apt
+
+dependencies: []

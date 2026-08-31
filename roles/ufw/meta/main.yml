@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: ufw
+  description: Reset ufw to a deny-incoming/allow-outgoing baseline and apply an allowlist
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - security
+    - firewall
+    - ufw
+
+dependencies: []
