@@ -41,23 +41,13 @@ ansible-galaxy collection install -r requirements.yml
 ## Development
 
 ```shell
-python3 -m venv .venv && source .venv/bin/activate
-pip install ansible-core molecule molecule-plugins[docker] ansible-lint yamllint
-```
-
-Molecule resolves roles by this collection's FQCN (`ctsc.sys.<role>`), so the
-checkout needs to be visible on the collections path under
-`ansible_collections/ctsc/sys`. The simplest way is a symlink:
-
-```shell
-mkdir -p ~/.ansible/collections/ansible_collections/ctsc
-ln -s "$(pwd)" ~/.ansible/collections/ansible_collections/ctsc/sys
+conda env create -f environment.yml && conda activate sys-collection
 ```
 
 Then, from the repo root:
 
 ```shell
-molecule test -s fail2ban   # runs create -> converge -> verify -> destroy
+molecule test -s fail2ban
 ansible-lint
 yamllint .
 ```
