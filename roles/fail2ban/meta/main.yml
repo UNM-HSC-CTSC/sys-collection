@@ -11,5 +11,6 @@ galaxy_info:
   galaxy_tags:
     - security
     - fail2ban
+  author: "Jack Ringer"
 
 dependencies: []

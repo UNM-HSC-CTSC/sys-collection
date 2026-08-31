@@ -8,6 +8,9 @@ authors:
   - Jack Ringer
 license:
   - MIT
+tags:
+  - infrastructure
+  - linux
 repository: https://github.com/UNM-HSC-CTSC/sys-collection
 issues: https://github.com/UNM-HSC-CTSC/sys-collection/issues
 dependencies: {}
