@@ -1,0 +1,63 @@
+---
+- name: Verify
+  hosts: all
+  vars:
+    ufw_test_allowed_rule_port: "2222/tcp"
+    ufw_test_allowed_rule_comment: "molecule test rule"
+    ufw_test_unlisted_port: "3333/tcp"
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify ufw is installed
+      ansible.builtin.assert:
+        that: "'ufw' in ansible_facts.packages"
+
+    - name: Get ufw status
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+    - name: Verify ufw is active
+      ansible.builtin.assert:
+        that: "'Status: active' in ufw_status.stdout"
+        fail_msg: "ufw is not active:\n{{ ufw_status.stdout }}"
+
+    - name: Verify default policy is deny incoming / allow outgoing
+      ansible.builtin.assert:
+        that:
+          - "'deny (incoming)' in ufw_status.stdout"
+          - "'allow (outgoing)' in ufw_status.stdout"
+        fail_msg: "Unexpected default policy:\n{{ ufw_status.stdout }}"
+
+    - name: Verify the rule from ufw_allow_rules was actually added to ufw
+      ansible.builtin.assert:
+        that:
+          - ufw_test_allowed_rule_port in ufw_status.stdout
+          - "'ALLOW IN' in ufw_status.stdout"
+          - ufw_test_allowed_rule_comment in ufw_status.stdout
+        fail_msg: >-
+          Expected an 'ALLOW IN' rule for {{ ufw_test_allowed_rule_port }}
+          (comment: '{{ ufw_test_allowed_rule_comment }}') but it was not
+          found in ufw status output:\n{{ ufw_status.stdout }}
+
+    - name: Verify a port not in ufw_allow_rules was NOT allowed
+      ansible.builtin.assert:
+        that: ufw_test_unlisted_port not in ufw_status.stdout
+        fail_msg: >-
+          {{ ufw_test_unlisted_port }} appears in ufw status output even
+          though it was never in ufw_allow_rules -- the allowlist is not
+          being applied exactly:\n{{ ufw_status.stdout }}
+
+    - name: Verify outbound requests are actually allowed
+      ansible.builtin.uri:
+        url: https://www.google.com/
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: ufw_outbound_check
+
+    - name: Assert the outbound request succeeded
+      ansible.builtin.assert:
+        that: ufw_outbound_check.status == 200
+        fail_msg: "Outbound HTTPS request failed even though ufw's default outgoing policy is allow"
