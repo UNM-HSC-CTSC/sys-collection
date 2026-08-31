@@ -34,7 +34,8 @@
     ufw_port_is_numeric: "{{ item.port is regex('^[0-9]+(:[0-9]+)?$') }}"
     ufw_resolved_service: "{{ ansible_facts.getent_services[item.port][0] if not ufw_port_is_numeric else '' }}"
     ufw_port: "{{ item.port if ufw_port_is_numeric else ufw_resolved_service.split('/')[0] }}"
-    ufw_proto: "{{ item.proto | default((ufw_resolved_service.split('/')[1] if ('/' in ufw_resolved_service) else 'any') if not ufw_port_is_numeric else 'any') }}"
+    ufw_resolved_proto: "{{ ufw_resolved_service.split('/')[1] if ('/' in ufw_resolved_service) else 'any' }}"
+    ufw_proto: "{{ item.proto | default(ufw_resolved_proto if not ufw_port_is_numeric else 'any') }}"
   loop: "{{ ufw_allow_rules }}"
   loop_control:
     label: "{{ item.port }}"
