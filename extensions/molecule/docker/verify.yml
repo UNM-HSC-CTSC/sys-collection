@@ -1,0 +1,63 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify conflicting packages were removed
+      ansible.builtin.assert:
+        that: "'docker.io' not in ansible_facts.packages"
+
+    - name: Verify Docker packages are installed
+      ansible.builtin.assert:
+        that: "item in ansible_facts.packages"
+        fail_msg: "{{ item }} is not installed"
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify docker service is active
+      ansible.builtin.assert:
+        that: ansible_facts.services['docker.service'].state == 'running'
+        fail_msg: "docker.service is not running:\n{{ ansible_facts.services['docker.service'] }}"
+
+    - name: Run a container to confirm the Docker daemon actually works
+      ansible.builtin.command: docker run --rm hello-world
+      register: docker_hello_world
+      changed_when: false
+
+    - name: Verify the container ran successfully
+      ansible.builtin.assert:
+        that: "'Hello from Docker!' in docker_hello_world.stdout"
+        fail_msg: "docker run --rm hello-world did not report success:\n{{ docker_hello_world.stdout }}"
+
+    - name: Verify ufw is installed and active
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert ufw is active
+      ansible.builtin.assert:
+        that: "'Status: active' in ufw_status.stdout"
+        fail_msg: "ufw is not active:\n{{ ufw_status.stdout }}"
+
+    - name: Verify the DOCKER-USER block was inserted into after.rules
+      ansible.builtin.command: grep -q "UFW AND DOCKER" /etc/ufw/after.rules
+      changed_when: false
+
+    - name: Verify the DOCKER-USER chain is actually loaded into iptables
+      ansible.builtin.command: iptables -S DOCKER-USER
+      register: docker_user_chain
+      changed_when: false
+
+    - name: Assert the DOCKER-USER chain has the ufw-user-forward jump
+      ansible.builtin.assert:
+        that: "'-A DOCKER-USER -j ufw-user-forward' in docker_user_chain.stdout"
+        fail_msg: "DOCKER-USER chain missing the ufw-user-forward jump:\n{{ docker_user_chain.stdout }}"

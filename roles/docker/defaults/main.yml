@@ -1,0 +1,8 @@
+---
+# Whether to insert the DOCKER-USER iptables chain into /etc/ufw/after.rules
+# and enable ufw. Docker manipulates iptables directly to publish container
+# ports, which bypasses ufw entirely -- this restores ufw's control over
+# inbound traffic to published container ports. Off by default: not every
+# host running this role also runs ufw, and forcing ufw enabled here could
+# lock out access on a host where no SSH allow rule exists yet (see README).
+docker_configure_ufw: false
