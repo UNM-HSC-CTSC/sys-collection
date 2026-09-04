@@ -1,0 +1,26 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    # The test instance is itself a container, so its own rootfs is already
+    # overlayfs. The nested dockerd this scenario installs can't layer
+    # overlay2 on top of that (fails with "mount ... invalid argument") on
+    # most kernels, so pin the test daemon to the vfs storage driver before
+    # it ever starts. This is a test-environment workaround only -- real
+    # hosts this role installs onto aren't nested containers and keep
+    # Docker's default overlay2 driver.
+    - name: Create /etc/docker directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+
+    - name: Force the vfs storage driver for the nested test daemon
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "storage-driver": "vfs"
+          }
+        mode: "0644"
