@@ -4,11 +4,12 @@ Host-agnostic Ansible roles for use with CTSC infrastructure (servers, VMs, etc)
 
 ## Roles
 
-| Role                                               | Description                                                      |
-| -------------------------------------------------- | ---------------------------------------------------------------- |
-| [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults                 |
-| [`ufw`](roles/ufw)                                 | Reset ufw to deny-incoming/allow-outgoing and apply an allowlist |
-| [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers            |
+| Role                                               | Description                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| [`docker`](roles/docker)                           | Install Docker Engine and (optionally) fix ufw for containers |
+| [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults              |
+| [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                            |
+| [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers         |
 
 ## Using this collection from another repo
 
@@ -50,6 +51,7 @@ uv pip sync requirements.txt
 Then, from the repo root:
 
 ```shell
+molecule test -s docker
 molecule test -s fail2ban
 molecule test -s ufw
 molecule test -s unattended_upgrades
