@@ -23,6 +23,8 @@ collections:
 
 ```shell
 ansible-galaxy collection install -r requirements.yml
+# or if already installed
+ansible-galaxy collection install -r requirements.yml --force
 ```
 
 ```yaml
