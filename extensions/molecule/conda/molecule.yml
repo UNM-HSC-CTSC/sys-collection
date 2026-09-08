@@ -1,0 +1,24 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: ansible-sys-conda-test
+    dockerfile: ../Dockerfile
+    pre_build_image: false
+    command: /lib/systemd/systemd
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+provisioner:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy
