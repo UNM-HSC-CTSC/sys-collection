@@ -1,0 +1,52 @@
+---
+# Install system-wide Miniconda for a multi-user environment on Ubuntu.
+- name: Check if Conda is already installed
+  ansible.builtin.stat:
+    path: "{{ conda_install_dir }}/bin/conda"
+  register: conda_installed
+
+- name: Download Miniconda installer
+  ansible.builtin.get_url:
+    url: "{{ conda_miniconda_url }}"
+    dest: "{{ conda_installer_dest }}"
+    mode: "0755"
+  when: not conda_installed.stat.exists
+
+- name: Install Miniconda
+  ansible.builtin.command: "{{ conda_installer_dest }} -b -p {{ conda_install_dir }}"
+  args:
+    creates: "{{ conda_install_dir }}/bin/conda"
+  when: not conda_installed.stat.exists
+
+- name: Remove Miniconda installer
+  ansible.builtin.file:
+    path: "{{ conda_installer_dest }}"
+    state: absent
+  when: not conda_installed.stat.exists
+
+- name: Set permissions for Conda installation
+  ansible.builtin.file:
+    path: "{{ conda_install_dir }}"
+    state: directory
+    recurse: true
+    owner: root
+    group: root
+    mode: go-w
+
+- name: Add Conda to system-wide PATH for interactive human users only
+  ansible.builtin.copy:
+    dest: /etc/profile.d/conda.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Only prepend conda to PATH for real human logins (UID >= 1000), not
+      # system/service accounts (irods, postgres, rabbitmq, etc.). Those
+      # accounts often run scripts via a login shell (e.g. Ansible's
+      # `become_flags: -i`) that assume the OS-packaged `python3`, and conda's
+      # base env shadowing it silently breaks them (e.g. `psutil` installed
+      # via apt for /usr/bin/python3 becomes invisible once /opt/conda/bin
+      # is first on PATH).
+      if [ "$(id -u)" -ge 1000 ]; then
+        export PATH="{{ conda_install_dir }}/bin:$PATH"
+      fi

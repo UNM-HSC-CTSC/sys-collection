@@ -1,0 +1,14 @@
+---
+# Directory Conda is installed into. World-readable but not world/group
+# writable (see the permissions task in tasks/main.yml) so every user can
+# run `conda`, but only root can modify the base install or its packages.
+conda_install_dir: /opt/conda
+
+# Miniconda3 installer download URL. Defaults to the latest x86_64 Linux
+# installer -- override for other architectures (e.g. aarch64) or to pin a
+# specific Miniconda version.
+conda_miniconda_url: https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+# Local path the installer is downloaded to before being run. Removed again
+# once installation succeeds.
+conda_installer_dest: /tmp/miniconda.sh

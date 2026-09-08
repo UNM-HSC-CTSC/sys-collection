@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Include ctsc.sys.conda
+      ansible.builtin.include_role:
+        name: ctsc.sys.conda

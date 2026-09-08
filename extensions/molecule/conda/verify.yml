@@ -1,0 +1,94 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    conda_test_install_dir: /opt/conda
+  tasks:
+    - name: Verify conda binary exists
+      ansible.builtin.stat:
+        path: "{{ conda_test_install_dir }}/bin/conda"
+      register: conda_binary
+
+    - name: Assert conda binary exists
+      ansible.builtin.assert:
+        that: conda_binary.stat.exists
+        fail_msg: "{{ conda_test_install_dir }}/bin/conda does not exist"
+
+    - name: Assert the install dir is owned by root:root
+      ansible.builtin.assert:
+        that:
+          - conda_binary.stat.pw_name == 'root'
+          - conda_binary.stat.gr_name == 'root'
+        fail_msg: "{{ conda_test_install_dir }}/bin/conda is not owned by root:root"
+
+    - name: Assert the install dir isn't group/other writable
+      ansible.builtin.assert:
+        that: not (conda_binary.stat.mode[-2] in ['2', '3', '6', '7'] or conda_binary.stat.mode[-1] in ['2', '3', '6', '7'])
+        fail_msg: "{{ conda_test_install_dir }}/bin/conda is group/other writable: {{ conda_binary.stat.mode }}"
+
+    - name: Run conda --version to confirm the install actually works
+      ansible.builtin.command: "{{ conda_test_install_dir }}/bin/conda --version"
+      register: conda_version
+      changed_when: false
+
+    - name: Assert conda --version reported a version
+      ansible.builtin.assert:
+        that: "'conda' in conda_version.stdout"
+        fail_msg: "conda --version did not report a version:\n{{ conda_version.stdout }}"
+
+    - name: Verify the installer was cleaned up
+      ansible.builtin.stat:
+        path: /tmp/miniconda_installer.sh
+      register: conda_installer_leftover
+
+    - name: Assert the installer file was removed
+      ansible.builtin.assert:
+        that: not conda_installer_leftover.stat.exists
+        fail_msg: Miniconda installer was left behind at /tmp/miniconda_installer.sh
+
+    - name: Verify /etc/profile.d/conda.sh was written
+      ansible.builtin.stat:
+        path: /etc/profile.d/conda.sh
+      register: conda_profile_script
+
+    - name: Assert /etc/profile.d/conda.sh exists
+      ansible.builtin.assert:
+        that: conda_profile_script.stat.exists
+        fail_msg: /etc/profile.d/conda.sh was not created
+
+    - name: Create a test human user (uid >= 1000 by default on Ubuntu)
+      ansible.builtin.user:
+        name: conda_test_human
+        shell: /bin/bash
+        system: false
+
+    - name: Get the test human user's uid
+      ansible.builtin.command: id -u conda_test_human
+      register: conda_test_human_uid
+      changed_when: false
+
+    - name: Assert the test human user actually got a uid >= 1000
+      ansible.builtin.assert:
+        that: conda_test_human_uid.stdout | int >= 1000
+        fail_msg: "conda_test_human got uid {{ conda_test_human_uid.stdout }}, expected >= 1000"
+
+    - name: Check PATH for the test human user's login shell
+      ansible.builtin.shell: su - conda_test_human -c 'echo $PATH'
+      register: conda_human_path
+      changed_when: false
+
+    - name: Assert the human user's login shell has conda on PATH
+      ansible.builtin.assert:
+        that: (conda_test_install_dir ~ '/bin') in conda_human_path.stdout
+        fail_msg: "conda bin dir not found in human user's PATH:\n{{ conda_human_path.stdout }}"
+
+    - name: Check PATH for root's login shell (uid 0, should be excluded)
+      ansible.builtin.shell: su - root -c 'echo $PATH'
+      register: conda_root_path
+      changed_when: false
+
+    - name: Assert root's login shell does not get conda on PATH
+      ansible.builtin.assert:
+        that: (conda_test_install_dir ~ '/bin') not in conda_root_path.stdout
+        fail_msg: "conda bin dir unexpectedly found in root's PATH:\n{{ conda_root_path.stdout }}"

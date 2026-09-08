@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: conda
+  description: Install a system-wide Miniconda for a multi-user environment
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - conda
+    - miniconda
+    - python
+  author: "Jack Ringer"
+
+dependencies: []

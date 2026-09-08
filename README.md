@@ -6,6 +6,7 @@ Host-agnostic Ansible roles for use with CTSC infrastructure (servers, VMs, etc)
 
 | Role                                               | Description                                                   |
 | -------------------------------------------------- | ------------------------------------------------------------- |
+| [`conda`](roles/conda)                             | Install a system-wide Miniconda for a multi-user environment  |
 | [`docker`](roles/docker)                           | Install Docker Engine and (optionally) fix ufw for containers |
 | [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults              |
 | [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                            |
@@ -53,6 +54,7 @@ uv pip sync requirements.txt
 Then, from the repo root:
 
 ```shell
+molecule test -s conda
 molecule test -s docker
 molecule test -s fail2ban
 molecule test -s ufw
