@@ -1,0 +1,43 @@
+---
+# Install Xfce + xrdp for remote desktop access on Ubuntu, and work around
+# xrdp's usual pitfalls (see README): the xrdp user needs ssl-cert group
+# membership to read its TLS cert, and Ubuntu's GNOME default session
+# breaks under xrdp so Xfce needs to be set as the system-wide default.
+
+- name: Install Xfce and xrdp packages
+  ansible.builtin.apt:
+    name:
+      - xfce4
+      - xfce4-goodies
+      - xrdp
+    state: present
+    update_cache: true
+
+- name: Ensure xrdp service is running and enabled
+  ansible.builtin.service:
+    name: xrdp
+    state: started
+    enabled: true
+
+- name: Add xrdp user to the ssl-cert group
+  ansible.builtin.user:
+    name: xrdp
+    groups: ssl-cert
+    append: true
+  notify: Restart xrdp
+
+- name: Set Xfce as the system-wide default session
+  community.general.alternatives:
+    name: x-session-manager
+    link: /usr/bin/x-session-manager
+    path: /usr/bin/xfce4-session
+
+- name: Configure xrdp MaxSessions
+  community.general.ini_file:
+    path: /etc/xrdp/xrdp.ini
+    section: Globals
+    option: MaxSessions
+    value: "{{ xrdp_max_sessions }}"
+    no_extra_spaces: true
+    mode: "0644"
+  notify: Restart xrdp

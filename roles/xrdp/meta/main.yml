@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: xrdp
+  description: Install Xfce and xrdp for remote desktop access, defaulting sessions to Xfce
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - xrdp
+    - xfce
+    - remotedesktop
+  author: "Jack Ringer"
+
+dependencies: []

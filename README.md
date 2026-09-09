@@ -11,6 +11,7 @@ Host-agnostic Ansible roles for use with CTSC infrastructure (servers, VMs, etc)
 | [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults              |
 | [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                            |
 | [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers         |
+| [`xrdp`](roles/xrdp)                               | Install Xfce and xrdp for remote desktop access                |
 
 ## Using this collection from another repo
 
@@ -59,6 +60,7 @@ molecule test -s docker
 molecule test -s fail2ban
 molecule test -s ufw
 molecule test -s unattended_upgrades
+molecule test -s xrdp
 ansible-lint
 yamllint .
 ```
