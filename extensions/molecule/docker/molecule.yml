@@ -2,10 +2,23 @@
 driver:
   name: docker
 platforms:
-  - name: instance
-    image: ansible-sys-docker-test
+  - name: ubuntu2204
+    image: ansible-sys-docker-test-2204
     dockerfile: ../Dockerfile
     pre_build_image: false
+    buildargs:
+      UBUNTU_VERSION: "22.04"
+    command: /lib/systemd/systemd
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  - name: ubuntu2404
+    image: ansible-sys-docker-test-2404
+    dockerfile: ../Dockerfile
+    pre_build_image: false
+    buildargs:
+      UBUNTU_VERSION: "24.04"
     command: /lib/systemd/systemd
     privileged: true
     cgroupns_mode: host
