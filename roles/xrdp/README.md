@@ -11,8 +11,9 @@ access, and works around xrdp's usual pitfalls on Ubuntu:
   GNOME default typically produces a black screen or an immediate
   disconnect. This is system-wide rather than per-user, so it also covers
   users created after this role runs.
-- Sets `MaxSessions` in `/etc/xrdp/xrdp.ini` (default `5`; xrdp itself
-  defaults to `50`).
+- Sets `MaxSessions` in `/etc/xrdp/sesman.ini` (default `5`; xrdp itself
+  defaults to `50`). This lives in `sesman.ini` rather than `xrdp.ini` --
+  `xrdp.ini` has no `MaxSessions` option.
 - Disables the Xfce compositor system-wide (via an xfconf default at
   `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml`), since compositing
   can try to acquire a GPU context that typically isn't available (or
@@ -22,9 +23,9 @@ access, and works around xrdp's usual pitfalls on Ubuntu:
 
 ## Variables
 
-| Variable            | Default | Description                                                    |
-| ------------------- | ------- | -------------------------------------------------------------- |
-| `xrdp_max_sessions` | `5`     | Maximum concurrent RDP sessions (`MaxSessions` in `xrdp.ini`). |
+| Variable            | Default | Description                                                      |
+| ------------------- | ------- | ---------------------------------------------------------------- |
+| `xrdp_max_sessions` | `5`     | Maximum concurrent RDP sessions (`MaxSessions` in `sesman.ini`). |
 
 ## Example
 

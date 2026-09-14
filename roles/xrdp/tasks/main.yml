@@ -52,12 +52,12 @@
       </channel>
     mode: "0644"
 
-- name: Configure xrdp MaxSessions
+- name: Configure xrdp-sesman MaxSessions
   community.general.ini_file:
-    path: /etc/xrdp/xrdp.ini
-    section: Globals
+    path: /etc/xrdp/sesman.ini
+    section: Sessions
     option: MaxSessions
     value: "{{ xrdp_max_sessions }}"
     no_extra_spaces: true
     mode: "0644"
-  notify: Restart xrdp
+  notify: Restart xrdp-sesman

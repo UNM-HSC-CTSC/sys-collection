@@ -43,8 +43,8 @@
         that: "'Value: /usr/bin/xfce4-session' in xrdp_session_manager.stdout"
         fail_msg: "x-session-manager is not set to xfce4-session:\n{{ xrdp_session_manager.stdout }}"
 
-    - name: Check MaxSessions in xrdp.ini
-      ansible.builtin.command: grep -E "^MaxSessions" /etc/xrdp/xrdp.ini
+    - name: Check MaxSessions in sesman.ini
+      ansible.builtin.command: grep -E "^MaxSessions" /etc/xrdp/sesman.ini
       register: xrdp_max_sessions_line
       changed_when: false
 
@@ -52,3 +52,19 @@
       ansible.builtin.assert:
         that: "'MaxSessions=3' in xrdp_max_sessions_line.stdout"
         fail_msg: "MaxSessions not set correctly:\n{{ xrdp_max_sessions_line.stdout }}"
+
+    - name: Check xrdp-sesman is running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['xrdp-sesman.service'].state == 'running'
+          - ansible_facts.services['xrdp-sesman.service'].status == 'enabled'
+
+    - name: Check the system-wide Xfce compositor default
+      ansible.builtin.command: grep -F "use_compositing" /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
+      register: xrdp_compositor_line
+      changed_when: false
+
+    - name: Assert the compositor default is disabled
+      ansible.builtin.assert:
+        that: "'value=\"false\"' in xrdp_compositor_line.stdout"
+        fail_msg: "use_compositing not disabled correctly:\n{{ xrdp_compositor_line.stdout }}"
