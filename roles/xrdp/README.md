@@ -13,6 +13,12 @@ access, and works around xrdp's usual pitfalls on Ubuntu:
   users created after this role runs.
 - Sets `MaxSessions` in `/etc/xrdp/xrdp.ini` (default `5`; xrdp itself
   defaults to `50`).
+- Disables the Xfce compositor system-wide (via an xfconf default at
+  `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml`), since compositing
+  can try to acquire a GPU context that typically isn't available (or
+  wanted) over RDP. Like the session-manager default above, this is a
+  system-wide fallback: it applies to any user who hasn't already set
+  their own compositor preference in `~/.config/xfce4/xfconf/...`.
 
 ## Variables
 

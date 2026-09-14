@@ -1,8 +1,10 @@
 ---
 # Install Xfce + xrdp for remote desktop access on Ubuntu, and work around
 # xrdp's usual pitfalls (see README): the xrdp user needs ssl-cert group
-# membership to read its TLS cert, and Ubuntu's GNOME default session
-# breaks under xrdp so Xfce needs to be set as the system-wide default.
+# membership to read its TLS cert, Ubuntu's GNOME default session breaks
+# under xrdp so Xfce needs to be set as the system-wide default, and Xfce's
+# compositor can try to grab a GPU context that isn't available/desired
+# over RDP so it's disabled system-wide by default.
 
 - name: Install Xfce and xrdp packages
   ansible.builtin.apt:
@@ -31,6 +33,24 @@
     name: x-session-manager
     link: /usr/bin/x-session-manager
     path: /usr/bin/xfce4-session
+
+- name: Ensure xfconf system-wide config directory exists
+  ansible.builtin.file:
+    path: /etc/xdg/xfce4/xfconf/xfce-perchannel-xml
+    state: directory
+    mode: "0755"
+
+- name: Disable Xfce compositor system-wide by default
+  ansible.builtin.copy:
+    dest: /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <channel name="xfwm4" version="1.0">
+        <property name="general" type="empty">
+          <property name="use_compositing" type="bool" value="false"/>
+        </property>
+      </channel>
+    mode: "0644"
 
 - name: Configure xrdp MaxSessions
   community.general.ini_file:
