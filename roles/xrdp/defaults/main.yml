@@ -1,0 +1,5 @@
+---
+# Maximum concurrent RDP sessions xrdp-sesman will accept (MaxSessions in
+# /etc/xrdp/sesman.ini). sesman ships with a much higher default (50),
+# which is overkill for most hosts this role targets.
+xrdp_max_sessions: 5

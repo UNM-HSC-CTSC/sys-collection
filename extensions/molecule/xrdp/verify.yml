@@ -1,0 +1,70 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify Xfce and xrdp packages are installed
+      ansible.builtin.assert:
+        that: "item in ansible_facts.packages"
+        fail_msg: "{{ item }} is not installed"
+      loop:
+        - xfce4
+        - xfce4-goodies
+        - xrdp
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify xrdp is running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['xrdp.service'].state == 'running'
+          - ansible_facts.services['xrdp.service'].status == 'enabled'
+
+    - name: Check the xrdp user's groups
+      ansible.builtin.command: id -nG xrdp
+      register: xrdp_user_groups
+      changed_when: false
+
+    - name: Assert the xrdp user is in the ssl-cert group
+      ansible.builtin.assert:
+        that: "'ssl-cert' in xrdp_user_groups.stdout.split()"
+        fail_msg: "xrdp user is not in the ssl-cert group:\n{{ xrdp_user_groups.stdout }}"
+
+    - name: Check the x-session-manager alternative
+      ansible.builtin.command: update-alternatives --query x-session-manager
+      register: xrdp_session_manager
+      changed_when: false
+
+    - name: Assert Xfce is the selected x-session-manager
+      ansible.builtin.assert:
+        that: "'Value: /usr/bin/xfce4-session' in xrdp_session_manager.stdout"
+        fail_msg: "x-session-manager is not set to xfce4-session:\n{{ xrdp_session_manager.stdout }}"
+
+    - name: Check MaxSessions in sesman.ini
+      ansible.builtin.command: grep -E "^MaxSessions" /etc/xrdp/sesman.ini
+      register: xrdp_max_sessions_line
+      changed_when: false
+
+    - name: Assert MaxSessions was set to the configured value
+      ansible.builtin.assert:
+        that: "'MaxSessions=3' in xrdp_max_sessions_line.stdout"
+        fail_msg: "MaxSessions not set correctly:\n{{ xrdp_max_sessions_line.stdout }}"
+
+    - name: Check xrdp-sesman is running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['xrdp-sesman.service'].state == 'running'
+          - ansible_facts.services['xrdp-sesman.service'].status == 'enabled'
+
+    - name: Check the system-wide Xfce compositor default
+      ansible.builtin.command: grep -F "use_compositing" /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
+      register: xrdp_compositor_line
+      changed_when: false
+
+    - name: Assert the compositor default is disabled
+      ansible.builtin.assert:
+        that: "'value=\"false\"' in xrdp_compositor_line.stdout"
+        fail_msg: "use_compositing not disabled correctly:\n{{ xrdp_compositor_line.stdout }}"

@@ -11,6 +11,7 @@ Host-agnostic Ansible roles for use with CTSC infrastructure (servers, VMs, etc)
 | [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults              |
 | [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                            |
 | [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers         |
+| [`xrdp`](roles/xrdp)                               | Install Xfce and xrdp for remote desktop access                |
 
 ## Using this collection from another repo
 
@@ -59,6 +60,7 @@ molecule test -s docker
 molecule test -s fail2ban
 molecule test -s ufw
 molecule test -s unattended_upgrades
+molecule test -s xrdp
 ansible-lint
 yamllint .
 ```
@@ -66,4 +68,8 @@ yamllint .
 Each role gets its own scenario under `extensions/molecule/<role_name>/`.
 Scenarios share a single base image, `extensions/molecule/Dockerfile`, which
 each scenario's `molecule.yml` points to via `dockerfile: ../Dockerfile` —
-add packages there only if a new scenario actually needs them.
+add packages there only if a new scenario actually needs them. Every
+scenario builds that Dockerfile twice, once per platform entry, passing
+`UBUNTU_VERSION` (`22.04` / `24.04`) as a docker build arg, so a single
+`molecule test -s <role_name>` verifies the role against both supported
+Ubuntu releases.
