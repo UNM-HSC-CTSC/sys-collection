@@ -1,7 +1,10 @@
 ---
-# List of dicts: { port, proto (default 'any'), src (default 'any'), comment (default '') }
+# List of dicts: { port, proto (default 'any'), src (default 'any'),
+# rule (default 'allow'), comment (default '') }
 # port is required: either a port number/name/range, or the literal "any" to
 # allow all ports (typically combined with an explicit src).
+# rule is optional: "allow" or "limit" -- use "limit" to rate-limit repeated
+# connection attempts (e.g. SSH) instead of allowing them outright.
 # Deliberately no default rules beyond "deny all incoming" -- every consuming
 # inventory must decide its own allowlist (see README).
 ufw_allow_rules: []

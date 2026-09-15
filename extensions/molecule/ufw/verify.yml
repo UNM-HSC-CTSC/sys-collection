@@ -8,6 +8,9 @@
     ufw_test_removed_rule_port: "4444/tcp"
     ufw_test_any_port_src: "172.18.0.0/16"
     ufw_test_any_port_comment: "molecule test any-port rule"
+    ufw_test_limit_rule_port: "2223/tcp"
+    ufw_test_limit_rule_comment: "molecule test limit rule"
+    ufw_test_removed_limit_rule_port: "5555/tcp"
   tasks:
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -71,6 +74,26 @@
           removed from ufw_allow_rules for the side_effect run, but it still
           appears in ufw status output -- stale rules are not being pruned
           when ufw_allow_rules changes:\n{{ ufw_status.stdout }}
+
+    - name: "Verify a rule: limit entry was applied as a LIMIT rule"
+      ansible.builtin.assert:
+        that:
+          - ufw_test_limit_rule_port in ufw_status.stdout
+          - "'LIMIT IN' in ufw_status.stdout"
+          - ufw_test_limit_rule_comment in ufw_status.stdout
+        fail_msg: >-
+          Expected a 'LIMIT IN' rule for {{ ufw_test_limit_rule_port }}
+          (comment: '{{ ufw_test_limit_rule_comment }}') but it was not
+          found in ufw status output:\n{{ ufw_status.stdout }}
+
+    - name: Verify a limit rule dropped from ufw_allow_rules on a later run was pruned
+      ansible.builtin.assert:
+        that: ufw_test_removed_limit_rule_port not in ufw_status.stdout
+        fail_msg: >-
+          {{ ufw_test_removed_limit_rule_port }} was limited during converge,
+          then removed from ufw_allow_rules for the side_effect run, but it
+          still appears in ufw status output -- stale limit rules are not
+          being pruned when ufw_allow_rules changes:\n{{ ufw_status.stdout }}
 
     - name: Verify outbound requests are actually allowed
       ansible.builtin.uri:

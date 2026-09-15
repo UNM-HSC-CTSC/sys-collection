@@ -14,6 +14,17 @@
     policy: allow
     direction: outgoing
 
+- name: Validate rule field in ufw_allow_rules
+  ansible.builtin.assert:
+    that: (item.rule | default('allow')) in ['allow', 'limit']
+    fail_msg: >-
+      Invalid rule '{{ item.rule | default('allow') }}' for port {{ item.port }} --
+      ufw_allow_rules entries must set rule to 'allow' or 'limit' (or omit it for
+      the 'allow' default).
+  loop: "{{ ufw_allow_rules }}"
+  loop_control:
+    label: "{{ item.port }}"
+
 - name: Resolve named ports in ufw_allow_rules for drift detection
   ansible.builtin.getent:
     database: services
@@ -29,7 +40,9 @@
 
 - name: Build desired ufw rule tuples for drift detection
   ansible.builtin.set_fact:
-    ufw_desired_tuples: "{{ ufw_desired_tuples + [[item.src | default('any'), ufw_port, ufw_proto, item.comment | default('')]] }}"
+    ufw_desired_tuples: >-
+      {{ ufw_desired_tuples + [[item.src | default('any'), ufw_port, ufw_proto,
+      ufw_rule, item.comment | default('')]] }}
   vars:
     ufw_port_is_any: "{{ item.port == 'any' }}"
     ufw_port_is_numeric: "{{ item.port is regex('^[0-9]+(:[0-9]+)?$') }}"
@@ -37,6 +50,7 @@
     ufw_port: "{{ item.port if (ufw_port_is_numeric or ufw_port_is_any) else ufw_resolved_service.split('/')[0] }}"
     ufw_resolved_proto: "{{ ufw_resolved_service.split('/')[1] if ('/' in ufw_resolved_service) else 'any' }}"
     ufw_proto: "{{ item.proto | default(ufw_resolved_proto if not (ufw_port_is_numeric or ufw_port_is_any) else 'any') }}"
+    ufw_rule: "{{ item.rule | default('allow') }}"
   loop: "{{ ufw_allow_rules }}"
   loop_control:
     label: "{{ item.port }}"
@@ -50,49 +64,52 @@
   ansible.builtin.set_fact:
     ufw_current_signatures: []
 
-- name: Parse currently added ufw allow rules with an explicit source and port
+- name: Parse currently added ufw allow/limit rules with an explicit source and port
   ansible.builtin.set_fact:
     ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
   vars:
     ufw_signature:
-      src: "{{ (item | regex_search('^ufw allow from (\\S+) to any port', '\\1'))[0] }}"
+      src: "{{ (item | regex_search('^ufw (?:allow|limit) from (\\S+) to any port', '\\1'))[0] }}"
       port: "{{ (item | regex_search('to any port (\\S+)', '\\1'))[0] }}"
       proto: "{{ ((item | regex_search(\" proto (\\S+)\", '\\1')) | default(['any'], true))[0] }}"
+      rule: "{{ (item | regex_search('^ufw (allow|limit) ', '\\1'))[0] }}"
       comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
       raw: "{{ item }}"
-  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow from ') | select('search', ' to any port ') | list }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw (allow|limit) from ') | select('search', ' to any port ') | list }}"
   loop_control:
     label: "{{ item }}"
 
-- name: Parse currently added ufw allow rules with an explicit source and any port
+- name: Parse currently added ufw allow/limit rules with an explicit source and any port
   ansible.builtin.set_fact:
     ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
   vars:
     ufw_signature:
-      src: "{{ (item | regex_search('^ufw allow from (\\S+)', '\\1'))[0] }}"
+      src: "{{ (item | regex_search('^ufw (?:allow|limit) from (\\S+)', '\\1'))[0] }}"
       port: "any"
       proto: "{{ ((item | regex_search(\" proto (\\S+)\", '\\1')) | default(['any'], true))[0] }}"
+      rule: "{{ (item | regex_search('^ufw (allow|limit) ', '\\1'))[0] }}"
       comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
       raw: "{{ item }}"
-  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow from ') | reject('search', ' to any port ') | list }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw (allow|limit) from ') | reject('search', ' to any port ') | list }}"
   loop_control:
     label: "{{ item }}"
 
-- name: Parse currently added ufw allow rules without an explicit source
+- name: Parse currently added ufw allow/limit rules without an explicit source
   ansible.builtin.set_fact:
     ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
   vars:
     ufw_signature:
       src: "any"
-      port: "{{ (item | regex_search('^ufw allow ([0-9]+(?::[0-9]+)?)', '\\1'))[0] }}"
-      proto: "{{ ((item | regex_search('^ufw allow [0-9]+(?::[0-9]+)?/(\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      port: "{{ (item | regex_search('^ufw (?:allow|limit) ([0-9]+(?::[0-9]+)?)', '\\1'))[0] }}"
+      proto: "{{ ((item | regex_search('^ufw (?:allow|limit) [0-9]+(?::[0-9]+)?/(\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      rule: "{{ (item | regex_search('^ufw (allow|limit) ', '\\1'))[0] }}"
       comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
       raw: "{{ item }}"
-  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow [0-9]') | list }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw (allow|limit) [0-9]') | list }}"
   loop_control:
     label: "{{ item }}"
 
-- name: Parse currently added ufw allow rules without an explicit source or port
+- name: Parse currently added ufw allow/limit rules without an explicit source or port
   ansible.builtin.set_fact:
     ufw_current_signatures: "{{ ufw_current_signatures + [ufw_signature] }}"
   vars:
@@ -100,15 +117,16 @@
       src: "any"
       port: "any"
       proto: "{{ ((item | regex_search(\" proto (\\S+)\", '\\1')) | default(['any'], true))[0] }}"
+      rule: "{{ (item | regex_search('^ufw (allow|limit) ', '\\1'))[0] }}"
       comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
       raw: "{{ item }}"
-  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw allow to any') | list }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw (allow|limit) to any') | list }}"
   loop_control:
     label: "{{ item }}"
 
-- name: Remove ufw allow rules that are not in ufw_allow_rules
+- name: Remove ufw allow/limit rules that are not in ufw_allow_rules
   community.general.ufw:
-    rule: allow
+    rule: "{{ item.rule }}"
     port: "{{ item.port if item.port != 'any' else omit }}"
     proto: "{{ item.proto }}"
     from_ip: "{{ item.src }}"
@@ -116,11 +134,11 @@
   loop: "{{ ufw_current_signatures }}"
   loop_control:
     label: "{{ item.raw }}"
-  when: "[item.src, item.port, item.proto, item.comment] not in ufw_desired_tuples"
+  when: "[item.src, item.port, item.proto, item.rule, item.comment] not in ufw_desired_tuples"
 
-- name: Allow ports defined in ufw_allow_rules
+- name: Apply rules defined in ufw_allow_rules
   community.general.ufw:
-    rule: allow
+    rule: "{{ item.rule | default('allow') }}"
     port: "{{ item.port if item.port != 'any' else omit }}"
     proto: "{{ item.proto | default('any') }}"
     from_ip: "{{ item.src | default('any') }}"
