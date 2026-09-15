@@ -14,3 +14,6 @@
           - port: "4444"
             proto: tcp
             comment: "molecule test rule to be removed"
+          - port: "any"
+            src: "172.18.0.0/16"
+            comment: "molecule test any-port rule"

@@ -14,9 +14,12 @@ alone.
 
 ## Variables
 
-| Variable          | Default | Description                                                                                                   |
-| ----------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
-| `ufw_allow_rules` | `[]`    | List of `{port, proto, src, comment}` dicts. `proto`/`src`/`comment` are optional (default `any`/`any`/`''`). |
+| Variable          | Default | Description                                                                                                                    |
+| ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `ufw_allow_rules` | `[]`    | List of `{port, proto, src, comment}` dicts. `port` is required (a port number/name/range, or `"any"`); `proto`/`src`/`comment` are optional (default `any`/`any`/`''`). |
+
+`port: "any"` allows all ports -- typically paired with an explicit `src` to
+scope it, such as trusting an entire subnet like a Docker bridge network.
 
 ## Example
 
@@ -34,5 +37,10 @@ alone.
               proto: tcp,
               src: "192.168.100.2",
               comment: "NFS from peer",
+            }
+          - {
+              port: "any",
+              src: "172.18.0.0/16",
+              comment: "Docker monitoring network",
             }
 ```

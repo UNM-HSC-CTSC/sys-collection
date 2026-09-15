@@ -11,3 +11,6 @@
           - port: "2222"
             proto: tcp
             comment: "molecule test rule"
+          - port: "any"
+            src: "172.18.0.0/16"
+            comment: "molecule test any-port rule"
