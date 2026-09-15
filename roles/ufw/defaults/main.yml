@@ -1,5 +1,7 @@
 ---
 # List of dicts: { port, proto (default 'any'), src (default 'any'), comment (default '') }
+# port is required: either a port number/name/range, or the literal "any" to
+# allow all ports (typically combined with an explicit src).
 # Deliberately no default rules beyond "deny all incoming" -- every consuming
 # inventory must decide its own allowlist (see README).
 ufw_allow_rules: []
