@@ -11,6 +11,14 @@
     ufw_test_limit_rule_port: "2223/tcp"
     ufw_test_limit_rule_comment: "molecule test limit rule"
     ufw_test_removed_limit_rule_port: "5555/tcp"
+    ufw_test_route_rule_src: "10.1.0.0/16"
+    ufw_test_route_rule_dest: "10.0.20.0/24"
+    ufw_test_route_rule_comment: "molecule test route rule"
+    ufw_test_removed_route_rule_src: "10.2.0.0/16"
+    ufw_test_src_only_route_rule_src: "10.3.0.0/16"
+    ufw_test_src_only_route_rule_comment: "molecule test src-only route rule"
+    ufw_test_route_limit_rule_port: "8443/tcp"
+    ufw_test_route_limit_rule_comment: "molecule test route limit rule"
   tasks:
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -95,6 +103,50 @@
           then removed from ufw_allow_rules for the side_effect run, but it
           still appears in ufw status output -- stale limit rules are not
           being pruned when ufw_allow_rules changes:\n{{ ufw_status.stdout }}
+
+    - name: Verify the rule from ufw_route_rules was actually added to ufw
+      ansible.builtin.assert:
+        that:
+          - ufw_test_route_rule_src in ufw_status.stdout
+          - ufw_test_route_rule_dest in ufw_status.stdout
+          - "'ALLOW FWD' in ufw_status.stdout"
+          - ufw_test_route_rule_comment in ufw_status.stdout
+        fail_msg: >-
+          Expected an 'ALLOW FWD' rule from {{ ufw_test_route_rule_src }} to
+          {{ ufw_test_route_rule_dest }} (comment:
+          '{{ ufw_test_route_rule_comment }}') but it was not found in ufw
+          status output:\n{{ ufw_status.stdout }}
+
+    - name: Verify a route rule with only src set scopes dest to Anywhere
+      ansible.builtin.assert:
+        that:
+          - ufw_test_src_only_route_rule_src in ufw_status.stdout
+          - ufw_test_src_only_route_rule_comment in ufw_status.stdout
+        fail_msg: >-
+          Expected an 'ALLOW FWD' rule from
+          {{ ufw_test_src_only_route_rule_src }} to any destination
+          (comment: '{{ ufw_test_src_only_route_rule_comment }}') but it was
+          not found in ufw status output:\n{{ ufw_status.stdout }}
+
+    - name: "Verify a route rule with rule: limit was applied as a LIMIT FWD rule"
+      ansible.builtin.assert:
+        that:
+          - ufw_test_route_limit_rule_port in ufw_status.stdout
+          - "'LIMIT FWD' in ufw_status.stdout"
+          - ufw_test_route_limit_rule_comment in ufw_status.stdout
+        fail_msg: >-
+          Expected a 'LIMIT FWD' rule for {{ ufw_test_route_limit_rule_port }}
+          (comment: '{{ ufw_test_route_limit_rule_comment }}') but it was not
+          found in ufw status output:\n{{ ufw_status.stdout }}
+
+    - name: Verify a rule dropped from ufw_route_rules on a later run was pruned
+      ansible.builtin.assert:
+        that: ufw_test_removed_route_rule_src not in ufw_status.stdout
+        fail_msg: >-
+          {{ ufw_test_removed_route_rule_src }} was routed during converge,
+          then removed from ufw_route_rules for the side_effect run, but it
+          still appears in ufw status output -- stale route rules are not
+          being pruned when ufw_route_rules changes:\n{{ ufw_status.stdout }}
 
     - name: Verify outbound requests are actually allowed
       ansible.builtin.uri:

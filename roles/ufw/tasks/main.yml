@@ -157,6 +157,107 @@
     comment: "{{ item.comment | default('') }}"
   loop: "{{ ufw_allow_rules }}"
 
+- name: Validate rule field in ufw_route_rules
+  ansible.builtin.assert:
+    that: (item.rule | default('allow')) in ['allow', 'limit']
+    fail_msg: >-
+      Invalid rule '{{ item.rule | default('allow') }}' for route
+      {{ item.src | default('any') }} -> {{ item.dest | default('any') }} --
+      ufw_route_rules entries must set rule to 'allow' or 'limit' (or omit it
+      for the 'allow' default).
+  loop: "{{ ufw_route_rules }}"
+  loop_control:
+    label: "{{ item.src | default('any') }} -> {{ item.dest | default('any') }}"
+
+- name: Validate ufw_route_rules scope at least one of src/dest
+  ansible.builtin.assert:
+    that: (item.src | default('any')) != 'any' or (item.dest | default('any')) != 'any'
+    fail_msg: >-
+      ufw_route_rules entries must set src and/or dest to something other
+      than 'any' -- an entry with both left as 'any' is equivalent to (and
+      should instead be expressed via) ufw_forward_policy.
+  loop: "{{ ufw_route_rules }}"
+  loop_control:
+    label: "{{ item.src | default('any') }} -> {{ item.dest | default('any') }}"
+
+- name: Resolve named ports in ufw_route_rules for drift detection
+  ansible.builtin.getent:
+    database: services
+    key: "{{ item.port }}"
+  loop: "{{ ufw_route_rules }}"
+  when: (item.port | default('any')) != 'any' and not ((item.port | default('any')) is regex('^[0-9]+(:[0-9]+)?$'))
+  loop_control:
+    label: "{{ item.src | default('any') }} -> {{ item.dest | default('any') }}"
+
+- name: Reset desired ufw route rule tuple accumulator
+  ansible.builtin.set_fact:
+    ufw_desired_route_tuples: []
+
+- name: Build desired ufw route rule tuples for drift detection
+  ansible.builtin.set_fact:
+    ufw_desired_route_tuples: >-
+      {{ ufw_desired_route_tuples + [[item.src | default('any'), item.dest | default('any'),
+      ufw_route_port, ufw_route_proto, ufw_route_rule, item.comment | default('')]] }}
+  vars:
+    ufw_route_port_raw: "{{ item.port | default('any') }}"
+    ufw_route_port_is_any: "{{ ufw_route_port_raw == 'any' }}"
+    ufw_route_port_is_numeric: "{{ ufw_route_port_raw is regex('^[0-9]+(:[0-9]+)?$') }}"
+    ufw_route_resolved_service: "{{ ansible_facts.getent_services[ufw_route_port_raw][0] if not (ufw_route_port_is_numeric or ufw_route_port_is_any) else '' }}"
+    ufw_route_port: "{{ ufw_route_port_raw if (ufw_route_port_is_numeric or ufw_route_port_is_any) else ufw_route_resolved_service.split('/')[0] }}"
+    ufw_route_resolved_proto: "{{ ufw_route_resolved_service.split('/')[1] if ('/' in ufw_route_resolved_service) else 'any' }}"
+    ufw_route_proto: "{{ item.proto | default(ufw_route_resolved_proto if not (ufw_route_port_is_numeric or ufw_route_port_is_any) else 'any') }}"
+    ufw_route_rule: "{{ item.rule | default('allow') }}"
+  loop: "{{ ufw_route_rules }}"
+  loop_control:
+    label: "{{ item.src | default('any') }} -> {{ item.dest | default('any') }}"
+
+- name: Reset current ufw route rule signature accumulator
+  ansible.builtin.set_fact:
+    ufw_current_route_signatures: []
+
+- name: Parse currently added ufw route allow/limit rules
+  ansible.builtin.set_fact:
+    ufw_current_route_signatures: "{{ ufw_current_route_signatures + [ufw_route_signature] }}"
+  vars:
+    ufw_route_signature:
+      src: "{{ ((item | regex_search(' from (\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      dest: "{{ ((item | regex_search(' to (\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      port: "{{ ((item | regex_search(' port (\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      proto: "{{ ((item | regex_search(' proto (\\S+)', '\\1')) | default(['any'], true))[0] }}"
+      rule: "{{ (item | regex_search('^ufw route (allow|limit) ', '\\1'))[0] }}"
+      comment: "{{ ((item | regex_search(\" comment '(.*)'\", '\\1')) | default([''], true))[0] }}"
+      raw: "{{ item }}"
+  loop: "{{ ufw_show_added.stdout_lines | select('match', '^ufw route (allow|limit) ') | list }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove ufw route rules that are not in ufw_route_rules
+  community.general.ufw:
+    route: true
+    rule: "{{ item.rule }}"
+    from_ip: "{{ item.src }}"
+    to_ip: "{{ item.dest }}"
+    port: "{{ item.port if item.port != 'any' else omit }}"
+    proto: "{{ item.proto }}"
+    delete: true
+  loop: "{{ ufw_current_route_signatures }}"
+  loop_control:
+    label: "{{ item.raw }}"
+  when: "[item.src, item.dest, item.port, item.proto, item.rule, item.comment] not in ufw_desired_route_tuples"
+
+- name: Apply rules defined in ufw_route_rules
+  community.general.ufw:
+    route: true
+    rule: "{{ item.rule | default('allow') }}"
+    from_ip: "{{ item.src | default('any') }}"
+    to_ip: "{{ item.dest | default('any') }}"
+    port: "{{ item.port if (item.port | default('any')) != 'any' else omit }}"
+    proto: "{{ item.proto | default('any') }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_route_rules }}"
+  loop_control:
+    label: "{{ item.src | default('any') }} -> {{ item.dest | default('any') }}"
+
 - name: Enable ufw
   community.general.ufw:
     state: enabled

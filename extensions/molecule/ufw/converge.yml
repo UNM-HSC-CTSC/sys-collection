@@ -25,3 +25,18 @@
             proto: tcp
             rule: limit
             comment: "molecule test limit rule to be removed"
+        ufw_route_rules:
+          - src: "10.1.0.0/16"
+            dest: "10.0.20.0/24"
+            comment: "molecule test route rule"
+          - src: "10.2.0.0/16"
+            dest: "10.0.30.0/24"
+            comment: "molecule test route rule to be removed"
+          - src: "10.3.0.0/16"
+            comment: "molecule test src-only route rule"
+          - src: "10.4.0.0/16"
+            dest: "10.4.0.0/16"
+            port: "8443"
+            proto: tcp
+            rule: limit
+            comment: "molecule test route limit rule"
