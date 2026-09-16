@@ -8,3 +8,18 @@
 # Deliberately no default rules beyond "deny all incoming" -- every consuming
 # inventory must decide its own allowlist (see README).
 ufw_allow_rules: []
+
+# Default policy for the FORWARD chain (routed/forwarded traffic): "allow",
+# "deny", or "reject".
+ufw_forward_policy: deny
+
+# List of dicts: { src (default 'any'), dest (default 'any'), port
+# (default 'any'), proto (default 'any'), rule (default 'allow'), comment
+# (default '') } -- scopes forwarded/routed traffic to specific subnets
+# (e.g. `ufw route allow from <src> to <dest>`), as a less permissive
+# alternative to opening ufw_forward_policy up entirely. At least one of
+# src/dest must be set to something other than "any": an entry with both
+# left as "any" is equivalent to (and should instead be expressed via)
+# ufw_forward_policy. rule is optional: "allow" or "limit" (same meaning as
+# in ufw_allow_rules).
+ufw_route_rules: []
