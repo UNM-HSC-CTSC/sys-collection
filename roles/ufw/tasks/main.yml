@@ -14,6 +14,18 @@
     policy: allow
     direction: outgoing
 
+- name: Validate ufw_forward_policy
+  ansible.builtin.assert:
+    that: ufw_forward_policy in ['allow', 'deny', 'reject']
+    fail_msg: >-
+      Invalid ufw_forward_policy '{{ ufw_forward_policy }}' -- must be one of
+      'allow', 'deny', or 'reject'.
+
+- name: Set default forward policy for routed traffic
+  community.general.ufw:
+    policy: "{{ ufw_forward_policy }}"
+    direction: routed
+
 - name: Validate rule field in ufw_allow_rules
   ansible.builtin.assert:
     that: (item.rule | default('allow')) in ['allow', 'limit']

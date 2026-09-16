@@ -29,11 +29,12 @@
         that: "'Status: active' in ufw_status.stdout"
         fail_msg: "ufw is not active:\n{{ ufw_status.stdout }}"
 
-    - name: Verify default policy is deny incoming / allow outgoing
+    - name: Verify default policy is deny incoming / allow outgoing / deny routed
       ansible.builtin.assert:
         that:
           - "'deny (incoming)' in ufw_status.stdout"
           - "'allow (outgoing)' in ufw_status.stdout"
+          - "'deny (routed)' in ufw_status.stdout"
         fail_msg: "Unexpected default policy:\n{{ ufw_status.stdout }}"
 
     - name: Verify the rule from ufw_allow_rules was actually added to ufw

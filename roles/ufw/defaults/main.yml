@@ -8,3 +8,7 @@
 # Deliberately no default rules beyond "deny all incoming" -- every consuming
 # inventory must decide its own allowlist (see README).
 ufw_allow_rules: []
+
+# Default policy for the FORWARD chain (routed/forwarded traffic): "allow",
+# "deny", or "reject".
+ufw_forward_policy: deny
