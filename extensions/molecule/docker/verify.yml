@@ -61,3 +61,25 @@
       ansible.builtin.assert:
         that: "'-A DOCKER-USER -j ufw-user-forward' in docker_user_chain.stdout"
         fail_msg: "DOCKER-USER chain missing the ufw-user-forward jump:\n{{ docker_user_chain.stdout }}"
+
+    - name: Assert traffic entering a Docker bridge is routed to the default-deny chain
+      ansible.builtin.assert:
+        that:
+          - "'-A DOCKER-USER -o docker0 -j ufw-docker-inbound' in docker_user_chain.stdout"
+          - "'-A DOCKER-USER -o br-+ -j ufw-docker-inbound' in docker_user_chain.stdout"
+        fail_msg: "DOCKER-USER does not send bridge-bound traffic to ufw-docker-inbound:\n{{ docker_user_chain.stdout }}"
+
+    - name: Assert the private-range source exemptions are gone
+      ansible.builtin.assert:
+        that: "'-s 10.0.0.0/8 -j RETURN' not in docker_user_chain.stdout"
+        fail_msg: "DOCKER-USER still exempts private source ranges:\n{{ docker_user_chain.stdout }}"
+
+    - name: Read the ufw-docker-inbound chain
+      ansible.builtin.command: iptables -S ufw-docker-inbound
+      register: docker_inbound_chain
+      changed_when: false
+
+    - name: Assert new connections into a bridge are denied by default
+      ansible.builtin.assert:
+        that: "'--ctstate NEW -j ufw-docker-logging-deny' in docker_inbound_chain.stdout"
+        fail_msg: "ufw-docker-inbound does not deny new connections:\n{{ docker_inbound_chain.stdout }}"

@@ -6,3 +6,13 @@
 # host running this role also runs ufw, and forcing ufw enabled here could
 # lock out access on a host where no SSH allow rule exists yet (see README).
 docker_configure_ufw: false
+
+# Docker bridge interfaces whose inbound traffic is default-denied (and opened
+# selectively with `ufw route allow`, e.g. via ctsc.sys.ufw's ufw_route_rules)
+# when docker_configure_ufw is true. Entries are iptables interface matches, so
+# a trailing "+" is a wildcard: "br-+" covers every user-defined bridge network
+# Docker creates by default. Add entries for networks created with a custom
+# com.docker.network.bridge.name.
+docker_ufw_bridge_interfaces:
+  - docker0
+  - br-+
