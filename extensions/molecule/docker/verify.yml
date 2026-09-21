@@ -83,3 +83,8 @@
       ansible.builtin.assert:
         that: "'--ctstate NEW -j ufw-docker-logging-deny' in docker_inbound_chain.stdout"
         fail_msg: "ufw-docker-inbound does not deny new connections:\n{{ docker_inbound_chain.stdout }}"
+
+    - name: Assert container egress is not blocked by default
+      ansible.builtin.assert:
+        that: "'-i docker0 ! -o docker0' not in docker_user_chain.stdout"
+        fail_msg: "DOCKER-USER blocks container egress although docker_ufw_block_container_egress is false:\n{{ docker_user_chain.stdout }}"

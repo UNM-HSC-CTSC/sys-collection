@@ -21,6 +21,15 @@
       -A DOCKER-USER -m conntrack --ctstate INVALID -j DROP
       -A DOCKER-USER -i docker0 -o docker0 -j ACCEPT
 
+      {% if docker_ufw_block_container_egress %}
+      # Containers may not start connections that leave their bridge. Exceptions are
+      # `ufw route allow from <container subnet> to <destination> port N` rules,
+      # which ufw-user-forward (above) evaluates first.
+      {% for iface in docker_ufw_bridge_interfaces %}
+      -A DOCKER-USER -i {{ iface }} ! -o {{ iface }} -m conntrack --ctstate NEW -j ufw-docker-logging-deny
+      {% endfor %}
+
+      {% endif %}
       # Only traffic heading INTO a Docker bridge is filtered here. Anything else
       # that is routed through this host (e.g. Kubernetes/Calico pod traffic) falls
       # through to the final RETURN and is left to its own rules.
