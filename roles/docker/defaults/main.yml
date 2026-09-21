@@ -16,3 +16,11 @@ docker_configure_ufw: false
 docker_ufw_bridge_interfaces:
   - docker0
   - br-+
+
+# Also block new outbound connections from containers on the bridges above to
+# anything beyond their own bridge. Off by default: containers normally need
+# outbound access. When enabled, open specific destinations with `ufw route allow
+# from <container subnet> to <destination> port N` (e.g. ctsc.sys.ufw's
+# ufw_route_rules). Note this does not filter container-to-host traffic (INPUT
+# chain): a container can still reach host ports that ufw allows from any source.
+docker_ufw_block_container_egress: false

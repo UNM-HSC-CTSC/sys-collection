@@ -46,6 +46,7 @@ here can lock you out of the host. Run `ctsc.sys.ufw` first (with
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `docker_configure_ufw`         | `false`             | Add the `DOCKER-USER` ufw/iptables fix and enable ufw.                                                                                   |
 | `docker_ufw_bridge_interfaces` | `[docker0, "br-+"]` | Bridge interfaces whose inbound traffic is default-denied. iptables matches: a trailing `+` is a wildcard. Add custom bridge names here. |
+| `docker_ufw_block_container_egress` | `false` | Also drop new outbound connections from containers on those bridges to anything beyond their own bridge. Open exceptions with `ufw route allow from <container subnet> to <destination> port N`. Does not filter container-to-host traffic. |
 
 ## Example
 
