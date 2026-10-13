@@ -1,0 +1,25 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  environment:
+    REQUESTS_CA_BUNDLE: /usr/local/share/pebble.minica.pem
+  tasks:
+    - name: Include ctsc.sys.certbot
+      ansible.builtin.include_role:
+        name: ctsc.sys.certbot
+      vars:
+        certbot_acme_server: "https://pebble:14000/dir"
+        certbot_email: "molecule@example.com"
+        # one of the fixed test accounts in Pebble's EAB config
+        certbot_eab_kid: "kid-1"
+        certbot_eab_hmac_key: "zWNDZM6eQGHWpSRTPal5eIUYFTu7EajVIoguysqZ9wG44nMEtx3MUAsUDkMTQ12W"
+        certbot_primary_domain: "molecule.example.com"
+        certbot_subject_alternative_names:
+          - "molecule-alt.example.com"
+          - "*.molecule.example.com"
+        certbot_deploy_hooks:
+          - name: molecule-marker
+            content: |
+              #!/bin/sh
+              touch /tmp/certbot-deploy-hook-ran

@@ -55,6 +55,7 @@ uv pip sync requirements.txt
 Then, from the repo root:
 
 ```shell
+molecule test -s certbot
 molecule test -s conda
 molecule test -s docker
 molecule test -s fail2ban

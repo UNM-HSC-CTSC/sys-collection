@@ -1,0 +1,9 @@
+---
+- name: Cleanup
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Remove the Pebble ACME test server
+      community.docker.docker_container:
+        name: pebble
+        state: absent

@@ -1,0 +1,89 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    cert_dir: /etc/letsencrypt/live/molecule.example.com
+  tasks:
+    - name: Check the certificate and key exist
+      ansible.builtin.stat:
+        path: "{{ cert_dir }}/{{ item }}"
+      register: cert_files
+      loop:
+        - fullchain.pem
+        - privkey.pem
+
+    - name: Assert the certificate and key exist
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: "{{ item.item }} is missing from {{ cert_dir }}"
+      loop: "{{ cert_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the certificate's subject alternative names
+      ansible.builtin.command: openssl x509 -in {{ cert_dir }}/cert.pem -noout -ext subjectAltName
+      register: cert_sans
+      changed_when: false
+
+    - name: Assert the certificate covers the primary domain and every SAN
+      ansible.builtin.assert:
+        that: "'DNS:' ~ item in cert_sans.stdout"
+        fail_msg: "{{ item }} is not in the certificate's SANs:\n{{ cert_sans.stdout }}"
+      loop:
+        - molecule.example.com
+        - molecule-alt.example.com
+        - "*.molecule.example.com"
+
+    - name: Read certbot.timer status
+      ansible.builtin.systemd_service:
+        name: certbot.timer
+      register: certbot_timer
+
+    - name: Assert certbot.timer is enabled and active
+      ansible.builtin.assert:
+        that:
+          - certbot_timer.status.UnitFileState == 'enabled'
+          - certbot_timer.status.ActiveState == 'active'
+        fail_msg: "certbot.timer is not enabled and active:\n{{ certbot_timer.status }}"
+
+    - name: Check the deploy hook is installed and executable
+      ansible.builtin.stat:
+        path: /etc/letsencrypt/renewal-hooks/deploy/molecule-marker
+      register: deploy_hook
+
+    - name: Assert the deploy hook is installed and executable
+      ansible.builtin.assert:
+        that:
+          - deploy_hook.stat.exists
+          - deploy_hook.stat.executable
+        fail_msg: "/etc/letsencrypt/renewal-hooks/deploy/molecule-marker is missing or not executable"
+
+    # Deploy hooks only run on renewal, not on the initial certonly.
+    - name: Check the deploy hook hasn't run yet
+      ansible.builtin.stat:
+        path: /tmp/certbot-deploy-hook-ran
+      register: deploy_hook_marker_before
+
+    - name: Assert the deploy hook hasn't run yet
+      ansible.builtin.assert:
+        that: not deploy_hook_marker_before.stat.exists
+        fail_msg: "the deploy hook ran before any renewal"
+
+    # Renews from the saved renewal config only (no role variables), which is
+    # what certbot.timer does, so this proves renewal works unattended.
+    - name: Force a renewal
+      ansible.builtin.command: certbot renew --force-renewal --non-interactive
+      environment:
+        REQUESTS_CA_BUNDLE: /usr/local/share/pebble.minica.pem
+      changed_when: true
+
+    - name: Check the deploy hook ran on renewal
+      ansible.builtin.stat:
+        path: /tmp/certbot-deploy-hook-ran
+      register: deploy_hook_marker_after
+
+    - name: Assert the deploy hook ran on renewal
+      ansible.builtin.assert:
+        that: deploy_hook_marker_after.stat.exists
+        fail_msg: "the deploy hook did not run during certbot renew"
