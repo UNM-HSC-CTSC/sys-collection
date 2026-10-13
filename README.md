@@ -4,14 +4,15 @@ Host-agnostic Ansible roles for use with CTSC infrastructure (servers, VMs, etc)
 
 ## Roles
 
-| Role                                               | Description                                                   |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| [`conda`](roles/conda)                             | Install a system-wide Miniconda for a multi-user environment  |
-| [`docker`](roles/docker)                           | Install Docker Engine and (optionally) fix ufw for containers |
-| [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults              |
-| [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                            |
-| [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers         |
-| [`xrdp`](roles/xrdp)                               | Install Xfce and xrdp for remote desktop access                |
+| Role                                               | Description                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [`certbot`](roles/certbot)                         | Register TLS certificates and setup renewals using an ACME account with Certbot |
+| [`conda`](roles/conda)                             | Install a system-wide Miniconda for a multi-user environment                    |
+| [`docker`](roles/docker)                           | Install Docker Engine and (optionally) fix ufw for containers                   |
+| [`fail2ban`](roles/fail2ban)                       | Install and enable fail2ban with distro defaults                                |
+| [`ufw`](roles/ufw)                                 | Install UFW and apply an allowlist                                              |
+| [`unattended_upgrades`](roles/unattended_upgrades) | Configure unattended-upgrades and periodic APT timers                           |
+| [`xrdp`](roles/xrdp)                               | Install Xfce and xrdp for remote desktop access                                 |
 
 ## Using this collection from another repo
 
