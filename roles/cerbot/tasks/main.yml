@@ -1,1 +1,27 @@
-# TODO
+---
+- name: Ensure certbot is installed
+  ansible.builtin.apt:
+    name: certbot
+    state: present
+    update_cache: true
+  register: _certbot_install
+
+- name: Check if certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ primary_domain }}/fullchain.pem"
+  register: cert_file
+
+# TODO: add SANs
+- name: Request certificate using certbot
+  ansible.builtin.command: >
+    sudo certbot certonly \
+    --authenticator manual \
+    --preferred-challenges dns \
+    --manual-auth-hook /bin/true \
+    --manual-cleanup-hook /bin/true \
+    --server {{ acme_server }} \
+    -d {{ primary_domain }} \
+    --non-interactive
+  when: not (ansible_check_mode and _certbot_install is changed)
+# TODO: add verification that certificate request was successful (report if not)
+# TODO: add ability to define custom renewal hooks (under /etc/letsencrypt/renewal-hooks/deploy)
