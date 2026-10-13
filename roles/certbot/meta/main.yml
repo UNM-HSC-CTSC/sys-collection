@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: certbot
+  description: Configure certbot with auto-renewal using an ACME account
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - certbot
+    - tls
+    - certs
+  author: "Jack Ringer"
+
+dependencies: []

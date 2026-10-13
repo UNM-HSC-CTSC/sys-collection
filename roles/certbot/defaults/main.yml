@@ -1,0 +1,32 @@
+---
+# if using CertiNEXT it is unlikely you would want to change the server
+certbot_acme_server: "https://acme-us.certinext.io/v1/directory"
+certbot_email: "your-email@salud.unm.edu"
+# External Account Binding (EAB) credentials for the ACME account. Only used
+# the first time certbot registers an account on the host; store these in
+# vault rather than plain inventory.
+# Key ID
+certbot_eab_kid: ""
+# MAC Key
+certbot_eab_hmac_key: ""
+
+# UNM ACME accounts also work for .salud.unm.edu and .health.unm.edu domains
+# note that you can use wildcards here, e.g., "*.your-server.unm.edu"
+# The primary domain also names the certificate lineage, i.e. the files end up
+# under /etc/letsencrypt/live/<primary domain>/.
+certbot_primary_domain: "your-server.unm.edu"
+# Changing this list on a host with an existing certificate re-issues it with
+# the new set of names.
+certbot_subject_alternative_names:
+  - "your-server.salud.unm.edu"
+
+# Scripts dropped into /etc/letsencrypt/renewal-hooks/deploy/. certbot runs
+# every executable there after each successful renewal (e.g. to reload a web
+# server so it picks up the new certificate). Each entry needs a `name` (the
+# file name) and `content` (the script, including its shebang), e.g.:
+#   certbot_deploy_hooks:
+#     - name: reload-nginx
+#       content: |
+#         #!/bin/sh
+#         systemctl reload nginx
+certbot_deploy_hooks: []

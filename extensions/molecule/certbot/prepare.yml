@@ -1,0 +1,46 @@
+---
+# Pebble (https://github.com/letsencrypt/pebble) is Let's Encrypt's ACME test
+# server. Its bundled EAB config requires External Account Binding (like
+# CertiNEXT) with a few fixed test key IDs, and PEBBLE_VA_ALWAYS_VALID makes it
+# accept every challenge without checking it -- the same as CertiNEXT's
+# pre-validated domains -- so the role's real certbot command runs unchanged.
+- name: Start the Pebble ACME test server
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Start Pebble
+      community.docker.docker_container:
+        name: pebble
+        # Pebble serves its ACME API with a bundled TLS cert (for "pebble" and
+        # "localhost") that expires 2027-10-03; bump the image if that lapses.
+        image: ghcr.io/letsencrypt/pebble:2.10.1
+        command:
+          - -config
+          - test/config/pebble-config-external-account-bindings.json
+        env:
+          PEBBLE_VA_ALWAYS_VALID: "1"
+          # Pebble rejects 5% of nonces by default to exercise client retries;
+          # turn that off so test runs are deterministic.
+          PEBBLE_WFE_NONCEREJECT: "0"
+        networks:
+          - name: certbot-molecule
+        state: started
+
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    # Pebble's TLS cert is signed by this test CA (copied from the Pebble
+    # image's test/certs/pebble.minica.pem). converge.yml/verify.yml point
+    # certbot at it via REQUESTS_CA_BUNDLE.
+    - name: Install the Pebble test CA
+      ansible.builtin.copy:
+        src: pebble.minica.pem
+        dest: /usr/local/share/pebble.minica.pem
+        mode: "0644"
+
+    - name: Wait for Pebble to accept connections
+      ansible.builtin.wait_for:
+        host: pebble
+        port: 14000
+        timeout: 30
