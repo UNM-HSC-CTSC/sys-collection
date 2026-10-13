@@ -1,0 +1,118 @@
+---
+- name: Ensure certbot is installed
+  ansible.builtin.apt:
+    name: certbot
+    state: present
+    update_cache: true
+  register: _certbot_install
+
+- name: Check required variables are set
+  ansible.builtin.assert:
+    that:
+      - certbot_primary_domain | length > 0
+      - certbot_email | length > 0
+      - certbot_eab_kid | length > 0
+      - certbot_eab_hmac_key | length > 0
+    fail_msg: >-
+      certbot_primary_domain, certbot_email, certbot_eab_kid and
+      certbot_eab_hmac_key must all be set.
+    quiet: true
+
+# The ACME account's domains are pre-validated (EAB), so no real challenge has
+# to be solved -- the manual hooks are no-ops. They're saved to the renewal
+# config, so `certbot renew` (certbot.timer) also runs non-interactively.
+#
+# --cert-name pins the lineage to the primary domain so a changed SAN list
+# updates the existing certificate rather than creating a new one, and
+# --keep-until-expiring makes re-runs a no-op while the cert isn't due for
+# renewal, so it's safe to run on every play.
+#
+# no_log keeps the EAB HMAC key out of the output; errors are reported by the
+# next task instead.
+- name: Request certificate using certbot
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --non-interactive
+      - --agree-tos
+      - --email
+      - "{{ certbot_email }}"
+      - --server
+      - "{{ certbot_acme_server }}"
+      - --eab-kid
+      - "{{ certbot_eab_kid }}"
+      - --eab-hmac-key
+      - "{{ certbot_eab_hmac_key }}"
+      - --authenticator
+      - manual
+      - --preferred-challenges
+      - dns
+      - --manual-auth-hook
+      - /bin/true
+      - --manual-cleanup-hook
+      - /bin/true
+      - --cert-name
+      - "{{ certbot_primary_domain }}"
+      - --keep-until-expiring
+      # comma-separated; the first domain is the certificate's subject
+      - -d
+      - "{{ ([certbot_primary_domain] + certbot_subject_alternative_names) | join(',') }}"
+  register: _certbot_request
+  changed_when: >-
+    'Certificate not yet due for renewal' not in
+    (_certbot_request.stdout + _certbot_request.stderr)
+  failed_when: false
+  no_log: true
+
+- name: Report certificate request failure
+  ansible.builtin.fail:
+    msg: "certbot failed (rc={{ _certbot_request.rc }}): {{ _certbot_request.stderr | default('', true) }}"
+  when:
+    - _certbot_request is not skipped
+    - _certbot_request.rc != 0
+
+- name: Check certificate exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ certbot_primary_domain }}/fullchain.pem"
+  register: _certbot_cert_file
+  when: _certbot_request is not skipped
+
+- name: Verify certificate was issued
+  ansible.builtin.assert:
+    that: _certbot_cert_file.stat.exists
+    fail_msg: >-
+      certbot exited successfully but
+      /etc/letsencrypt/live/{{ certbot_primary_domain }}/fullchain.pem
+      does not exist.
+    quiet: true
+  when: _certbot_request is not skipped
+
+- name: Ensure certbot deploy hooks directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: certbot_deploy_hooks | length > 0
+
+- name: Install certbot deploy hooks
+  ansible.builtin.copy:
+    dest: "/etc/letsencrypt/renewal-hooks/deploy/{{ item.name }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ certbot_deploy_hooks }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Same check-mode caveat as the fail2ban role: if certbot was only "installed"
+# by a simulated apt run, the timer unit doesn't exist yet.
+- name: Ensure certbot renewal timer is running and enabled
+  ansible.builtin.systemd_service:
+    name: certbot.timer
+    state: started
+    enabled: true
+  when: not (ansible_check_mode and _certbot_install is changed)
