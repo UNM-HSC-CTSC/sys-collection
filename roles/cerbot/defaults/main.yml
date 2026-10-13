@@ -1,4 +1,13 @@
+# if using CertiNEXT it is unlikely you would want to change the server
+acme_server: "https://acme-us.certinext.io/v1/directory"
+email: "your-email@salud.unm.edu"
 # Key ID
 eab_kid: ""
 # MAC Key
 eab_hmac_key: ""
+
+# UNM ACME accounts also work for .salud.unm.edu and .health.unm.edu domains
+# note that you can use wildcards here, e.g., "*.your-server.unm.edu"
+primary_domain: "your-server@unm.edu"
+subject_alternative_names:
+  - "your-server@salud.unm.edu"
