@@ -16,6 +16,11 @@ See `defaults/main.yml` for all variables. `certbot_email`, `certbot_eab_kid`,
 `certbot_eab_hmac_key` and `certbot_primary_domain` are required; keep the EAB
 credentials in vault.
 
+Keys are ECDSA (P-256) by default. Set `certbot_key_type: rsa` to use RSA
+instead, with `certbot_rsa_key_size` (default `4096`, must be >= 2048).
+Changing the key type or size on a host with an existing certificate
+re-issues it with a new key.
+
 Use `certbot_deploy_hooks` to run scripts after each successful renewal, e.g.
 to reload a web server.
 

@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  environment:
+    REQUESTS_CA_BUNDLE: /usr/local/share/pebble.minica.pem
   vars:
     cert_dir: /etc/letsencrypt/live/molecule.example.com
   tasks:
@@ -74,8 +76,6 @@
     # what certbot.timer does, so this proves renewal works unattended.
     - name: Force a renewal
       ansible.builtin.command: certbot renew --force-renewal --non-interactive
-      environment:
-        REQUESTS_CA_BUNDLE: /usr/local/share/pebble.minica.pem
       changed_when: true
 
     - name: Check the deploy hook ran on renewal
@@ -87,3 +87,43 @@
       ansible.builtin.assert:
         that: deploy_hook_marker_after.stat.exists
         fail_msg: "the deploy hook did not run during certbot renew"
+
+    - name: Read the certificate key
+      ansible.builtin.command: openssl pkey -in {{ cert_dir }}/privkey.pem -noout -text_pub
+      register: cert_key
+      changed_when: false
+
+    - name: Assert the key is a 3072-bit RSA key
+      ansible.builtin.assert:
+        that:
+          - "'Modulus:' in cert_key.stdout"
+          - "'(3072 bit)' in cert_key.stdout"
+        fail_msg: "the certificate key is not 3072-bit RSA:\n{{ cert_key.stdout }}"
+
+    # Re-run the role with a different key type to check an existing
+    # certificate gets re-issued with the new key.
+    - name: Re-run ctsc.sys.certbot with an ECDSA key
+      ansible.builtin.include_role:
+        name: ctsc.sys.certbot
+      vars:
+        certbot_acme_server: "https://pebble:14000/dir"
+        certbot_email: "molecule@example.com"
+        certbot_eab_kid: "kid-1"
+        certbot_eab_hmac_key: "zWNDZM6eQGHWpSRTPal5eIUYFTu7EajVIoguysqZ9wG44nMEtx3MUAsUDkMTQ12W"
+        certbot_primary_domain: "molecule.example.com"
+        certbot_subject_alternative_names:
+          - "molecule-alt.example.com"
+          - "*.molecule.example.com"
+        certbot_key_type: "ecdsa"
+
+    - name: Read the re-issued certificate key
+      ansible.builtin.command: openssl pkey -in {{ cert_dir }}/privkey.pem -noout -text_pub
+      register: cert_key_ecdsa
+      changed_when: false
+
+    - name: Assert the key is now an ECDSA key
+      ansible.builtin.assert:
+        that:
+          - "'Modulus:' not in cert_key_ecdsa.stdout"
+          - "'ASN1 OID: prime256v1' in cert_key_ecdsa.stdout"
+        fail_msg: "the re-issued certificate key is not ECDSA:\n{{ cert_key_ecdsa.stdout }}"
