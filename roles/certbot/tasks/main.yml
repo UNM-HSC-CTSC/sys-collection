@@ -18,6 +18,56 @@
       certbot_eab_hmac_key must all be set.
     quiet: true
 
+- name: Check key type variables are valid
+  ansible.builtin.assert:
+    that:
+      - certbot_key_type in ['ecdsa', 'rsa']
+      - >-
+        certbot_key_type != 'rsa' or
+        (certbot_rsa_key_size | default(0, true) | string is match('^[0-9]+$') and
+         certbot_rsa_key_size | int >= 2048)
+    fail_msg: >-
+      certbot_key_type must be "ecdsa" or "rsa", and when it is "rsa"
+      certbot_rsa_key_size must be set to an integer >= 2048
+      (got certbot_key_type={{ certbot_key_type }},
+      certbot_rsa_key_size={{ certbot_rsa_key_size | default('') }}).
+    quiet: true
+
+# --keep-until-expiring doesn't look at the key, so if the existing
+# certificate's key doesn't match certbot_key_type / certbot_rsa_key_size we
+# force a renewal below to re-issue it with a new key.
+- name: Check for an existing certificate key
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ certbot_primary_domain }}/privkey.pem"
+  register: _certbot_existing_key
+
+- name: Read the existing certificate key
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - pkey
+      - -in
+      - "/etc/letsencrypt/live/{{ certbot_primary_domain }}/privkey.pem"
+      - -noout
+      - -text_pub
+  register: _certbot_existing_key_info
+  changed_when: false
+  check_mode: false
+  when: _certbot_existing_key.stat.exists
+
+# RSA public keys print a "Modulus:"; both types print "(<bits> bit)".
+- name: Determine whether the existing key needs replacing
+  ansible.builtin.set_fact:
+    _certbot_key_mismatch: >-
+      {{
+        _certbot_existing_key.stat.exists and (
+          ('rsa' if 'Modulus:' in _certbot_existing_key_info.stdout else 'ecdsa') != certbot_key_type
+          or (certbot_key_type == 'rsa' and
+              (_certbot_existing_key_info.stdout | regex_search('\((\d+) bit\)', '\1') | first | int)
+              != certbot_rsa_key_size | int)
+        )
+      }}
+
 # The ACME account's domains are pre-validated (EAB), so no real challenge has
 # to be solved -- the manual hooks are no-ops. They're saved to the renewal
 # config, so `certbot renew` (certbot.timer) also runs non-interactively.
@@ -25,13 +75,22 @@
 # --cert-name pins the lineage to the primary domain so a changed SAN list
 # updates the existing certificate rather than creating a new one, and
 # --keep-until-expiring makes re-runs a no-op while the cert isn't due for
-# renewal, so it's safe to run on every play.
+# renewal, so it's safe to run on every play. --force-renewal replaces it when
+# the existing key is the wrong type/size. Passing --key-type together with
+# --cert-name is also what tells certbot (2.x) the key type change is
+# intentional rather than prompting for it.
 #
 # no_log keeps the EAB HMAC key out of the output; errors are reported by the
 # next task instead.
 - name: Request certificate using certbot
   ansible.builtin.command:
-    argv:
+    # -d is comma-separated; the first domain is the certificate's subject
+    argv: >-
+      {{ _certbot_argv
+         + (['--rsa-key-size', certbot_rsa_key_size | string] if certbot_key_type == 'rsa' else [])
+         + ['-d', ([certbot_primary_domain] + certbot_subject_alternative_names) | join(',')] }}
+  vars:
+    _certbot_argv:
       - certbot
       - certonly
       - --non-interactive
@@ -54,10 +113,9 @@
       - /bin/true
       - --cert-name
       - "{{ certbot_primary_domain }}"
-      - --keep-until-expiring
-      # comma-separated; the first domain is the certificate's subject
-      - -d
-      - "{{ ([certbot_primary_domain] + certbot_subject_alternative_names) | join(',') }}"
+      - "{{ '--force-renewal' if _certbot_key_mismatch | bool else '--keep-until-expiring' }}"
+      - --key-type
+      - "{{ certbot_key_type }}"
   register: _certbot_request
   changed_when: >-
     'Certificate not yet due for renewal' not in

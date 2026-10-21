@@ -20,6 +20,14 @@ certbot_primary_domain: "your-server.unm.edu"
 certbot_subject_alternative_names:
   - "your-server.salud.unm.edu"
 
+# Type of private key to generate: "ecdsa" (ECC, P-256) or "rsa". Changing
+# either of these on a host with an existing certificate re-issues it with a
+# new key of the requested type/size.
+certbot_key_type: "ecdsa"
+# RSA key size in bits; only used (and required, >= 2048) when
+# certbot_key_type is "rsa".
+certbot_rsa_key_size: 4096
+
 # Scripts dropped into /etc/letsencrypt/renewal-hooks/deploy/. certbot runs
 # every executable there after each successful renewal (e.g. to reload a web
 # server so it picks up the new certificate). Each entry needs a `name` (the

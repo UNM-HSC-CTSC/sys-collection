@@ -18,6 +18,9 @@
         certbot_subject_alternative_names:
           - "molecule-alt.example.com"
           - "*.molecule.example.com"
+        # exercise the non-default key type; verify.yml switches back to ecdsa
+        certbot_key_type: "rsa"
+        certbot_rsa_key_size: 3072
         certbot_deploy_hooks:
           - name: molecule-marker
             content: |
