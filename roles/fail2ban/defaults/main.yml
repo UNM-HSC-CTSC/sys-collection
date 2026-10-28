@@ -1,0 +1,8 @@
+---
+# IPs / CIDR ranges / hostnames fail2ban should never ban (`ignoreip` in the
+# [DEFAULT] section of /etc/fail2ban/jail.local, so it applies to every jail).
+# Empty (the default) leaves jail.local untouched. Note that setting this
+# replaces fail2ban's own default, so include 127.0.0.1/8 and ::1 if you want
+# loopback ignored explicitly (fail2ban's `ignoreself` covers the host's own
+# addresses regardless).
+fail2ban_ignoreip: []
