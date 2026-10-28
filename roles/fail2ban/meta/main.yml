@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   role_name: fail2ban
-  description: Install and enable fail2ban with its distro defaults
+  description: Install and enable fail2ban, with an optional ignoreip whitelist
   license: MIT
   min_ansible_version: "2.18"
   platforms:

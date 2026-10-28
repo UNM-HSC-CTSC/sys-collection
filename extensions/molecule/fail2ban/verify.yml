@@ -17,3 +17,15 @@
         that:
           - ansible_facts.services['fail2ban.service'].state == 'running'
           - ansible_facts.services['fail2ban.service'].status == 'enabled'
+
+    - name: Read fail2ban's sshd ignoreip list
+      ansible.builtin.command: fail2ban-client get sshd ignoreip
+      register: _ignoreip
+      changed_when: false
+
+    - name: Verify the whitelist was applied
+      ansible.builtin.assert:
+        that:
+          - "'127.0.0.0/8' in _ignoreip.stdout"
+          - "'::1' in _ignoreip.stdout"
+          - "'192.168.1.1' in _ignoreip.stdout"

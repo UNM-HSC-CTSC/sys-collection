@@ -6,6 +6,16 @@
     update_cache: true
   register: _fail2ban_install
 
+- name: Configure fail2ban ignoreip whitelist
+  community.general.ini_file:
+    path: /etc/fail2ban/jail.local
+    section: DEFAULT
+    option: ignoreip
+    value: "{{ fail2ban_ignoreip | join(' ') }}"
+    mode: "0644"
+  when: fail2ban_ignoreip | length > 0
+  notify: Reload fail2ban
+
 # In check mode, if fail2ban isn't installed yet, the apt task above is only
 # simulated, so the service doesn't actually exist on the host yet. Querying
 # it would fail with "Could not find the requested service", so skip it and
@@ -16,3 +26,36 @@
     state: started
     enabled: true
   when: not (ansible_check_mode and _fail2ban_install is changed)
+
+- name: Apply pending fail2ban config changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Read back fail2ban ignoreip for the sshd jail
+  ansible.builtin.command: fail2ban-client get sshd ignoreip
+  register: _fail2ban_ignoreip
+  changed_when: false
+  when:
+    - fail2ban_ignoreip | length > 0
+    - not ansible_check_mode
+
+# fail2ban normalizes CIDRs to their network address (127.0.0.1/8 is reported
+# back as 127.0.0.0/8), so CIDR entries can't be string-matched. Check that
+# every plain IP is listed verbatim and that the entry count matches instead.
+- name: Confirm fail2ban is ignoring the configured IPs
+  ansible.builtin.assert:
+    that:
+      - _entries | length == fail2ban_ignoreip | unique | length
+      - fail2ban_ignoreip | reject('search', '/') | difference(_entries) | length == 0
+    fail_msg: >-
+      fail2ban's sshd ignoreip ({{ _entries | join(' ') }}) doesn't match
+      fail2ban_ignoreip ({{ fail2ban_ignoreip | join(' ') }})
+    success_msg: "fail2ban sshd ignoreip: {{ _entries | join(' ') }}"
+  vars:
+    _entries: >-
+      {{ _fail2ban_ignoreip.stdout_lines
+         | select('match', '^[|`]- ')
+         | map('regex_replace', '^[|`]- ', '')
+         | list }}
+  when:
+    - fail2ban_ignoreip | length > 0
+    - not ansible_check_mode
